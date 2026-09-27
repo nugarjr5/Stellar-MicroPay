@@ -136,6 +136,7 @@ export default function Dashboard({ stellarURI }: DashboardProps) {
   const [xlmPrice, setXlmPrice] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [sorobanEvents, setSorobanEvents] = useState<any[]>([]);
   const [refreshCountdown, setRefreshCountdown] = useState(AUTO_REFRESH_SECONDS);
   const [isRefreshingBalance, setIsRefreshingBalance] = useState(false);
   const { visible: toastVisible, message: toastMessage, showToast } = useToast();

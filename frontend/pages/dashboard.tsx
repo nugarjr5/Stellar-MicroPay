@@ -670,7 +670,13 @@ export default function Dashboard({ stellarURI }: DashboardProps) {
   };
   // Real-time Soroban contract events via Server-Sent Events (SSE).
   useEffect(() => {
-    if (!publicKey || typeof window === "undefined") return;
+  if (
+  !publicKey ||
+  typeof window === "undefined" ||
+  typeof EventSource === "undefined"
+) {
+  return;
+  }
 
     const apiBase =
       process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "";

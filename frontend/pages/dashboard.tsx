@@ -692,7 +692,7 @@ export default function Dashboard({ stellarURI }: DashboardProps) {
 
         if (payload.type !== "soroban_event") return;
 
-        setRefreshKey((current) => current + 1);
+        setSorobanEvents((current) => [payload.event, ...current].slice(0, 50));
       } catch (error) {
         console.error("Failed to process Soroban SSE event:", error);
       }

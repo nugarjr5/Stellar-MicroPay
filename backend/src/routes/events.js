@@ -1,58 +1,110 @@
 "use strict";
 
-const request = require("supertest");
+const express = require("express");
+const { Server } = require("@stellar/stellar-sdk/rpc");
 
-const mockGetLatestLedger = jest.fn();
-const mockGetEvents = jest.fn();
+const router = express.Router();
 
-jest.mock("@stellar/stellar-sdk/rpc", () => ({
-  Server: jest.fn(() => ({
-    getLatestLedger: mockGetLatestLedger,
-    getEvents: mockGetEvents,
-  })),
-}));
+const RPC_URL =
+  process.env.SOROBAN_RPC_URL || "https://soroban-testnet.stellar.org";
 
-const app = require("../src/server");
+const CONTRACT_ID = process.env.CONTRACT_ID;
 
-describe("GET /api/events/stream", () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
+const sorobanServer = new Server(RPC_URL);
 
-    mockGetLatestLedger.mockResolvedValue({
-      sequence: 100,
-    });
+const clients = new Set();
+let lastLedger = null;
+let polling = false;
 
-    mockGetEvents.mockResolvedValue({
-      events: [],
-    });
-  });
+const sendEvent = (res, event) => {
+  res.write(`data: ${JSON.stringify(event)}\n\n`);
+};
 
-  it("opens an SSE connection", async () => {
-    const response = await request(app)
-      .get("/api/events/stream")
-      .buffer(false)
-      .parse((res, callback) => {
-        res.on("data", () => {
-          res.destroy();
-          callback(null, Buffer.alloc(0));
+const broadcast = (event) => {
+  for (const client of clients) {
+    try {
+      sendEvent(client, event);
+    } catch (error) {
+      clients.delete(client);
+    }
+  }
+};
+
+const pollEvents = async () => {
+  if (polling) return;
+
+  polling = true;
+
+  try {
+    const latest = await sorobanServer.getLatestLedger();
+
+    if (lastLedger === null) {
+      lastLedger = Math.max(1, latest.sequence - 1);
+    }
+
+    if (latest.sequence > lastLedger) {
+      const request = {
+        startLedger: lastLedger + 1,
+        endLedger: latest.sequence,
+        filters: CONTRACT_ID
+          ? [
+              {
+                type: "contract",
+                contractIds: [CONTRACT_ID],
+              },
+            ]
+          : [],
+        pagination: {
+          limit: 100,
+        },
+      };
+
+      const result = await sorobanServer.getEvents(request);
+
+      for (const event of result.events || []) {
+        broadcast({
+          type: "soroban_event",
+          event,
         });
-      });
+      }
 
-    expect(response.headers["content-type"]).toMatch(/text\/event-stream/);
-    expect(response.headers["cache-control"]).toBe("no-cache");
+      lastLedger = latest.sequence;
+    }
+  } catch (error) {
+    broadcast({
+      type: "error",
+      message: "Failed to fetch Soroban events",
+    });
+  } finally {
+    polling = false;
+  }
+};
+
+router.get("/stream", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  res.flushHeaders();
+
+  clients.add(res);
+
+  sendEvent(res, {
+    type: "connected",
+    message: "SSE connection established",
   });
 
-  it("polls Soroban events", async () => {
-    await request(app)
-      .get("/api/events/stream")
-      .buffer(false)
-      .parse((res, callback) => {
-        res.on("data", () => {
-          res.destroy();
-          callback(null, Buffer.alloc(0));
-        });
-      });
+  const cleanup = () => {
+    clients.delete(res);
+    res.end();
+  };
 
-    expect(mockGetLatestLedger).toHaveBeenCalled();
-  });
+  req.on("close", cleanup);
 });
+
+const pollInterval = setInterval(pollEvents, 5000);
+pollInterval.unref();
+
+pollEvents();
+
+module.exports = router;

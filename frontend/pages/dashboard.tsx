@@ -1136,7 +1136,53 @@ export default function Dashboard({ stellarURI }: DashboardProps) {
                 View all →
               </Link>
             </div>
-            <TransactionList key={refreshKey} publicKey={publicKey} limit={5} compact />
+            <TransactionList key={refreshKey} publicKey={publicKey} limit={5} compact 
+              <div className="card mt-6">
+  <div className="flex items-center justify-between mb-6">
+    <h2 className="font-display text-lg font-semibold text-white">
+      Soroban Contract Events
+    </h2>
+    <span className="text-xs text-slate-500">
+      {sorobanEvents.length} events
+    </span>
+  </div>
+
+  {sorobanEvents.length === 0 ? (
+    <p className="text-sm text-slate-500">
+      Waiting for Soroban contract events...
+    </p>
+  ) : (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-slate-500 border-b border-white/10">
+            <th className="py-2 pr-4">Event</th>
+            <th className="py-2 pr-4">Ledger</th>
+            <th className="py-2">Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorobanEvents.map((event, index) => (
+            <tr
+              key={`${event?.id ?? "event"}-${index}`}
+              className="border-b border-white/5"
+            >
+              <td className="py-3 pr-4 text-slate-200">
+                {event?.type ?? "contract event"}
+              </td>
+              <td className="py-3 pr-4 text-slate-400">
+                {event?.ledger ?? event?.ledgerSequence ?? "—"}
+              </td>
+              <td className="py-3 text-xs text-slate-500">
+                <code>{JSON.stringify(event)}</code>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</div>
           </div>
         </div>
       </div>

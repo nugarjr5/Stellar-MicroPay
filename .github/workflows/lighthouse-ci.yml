@@ -28,6 +28,19 @@ jobs:
       - run: npm ci
       - name: Build static site
         run: npm run build
+      - name: Start Next.js server
+        run: npm run start > /tmp/next.log 2>&1 &
+
+      - name: Wait for Next.js server
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://localhost:3000/ > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/next.log
+          exit 1
         env:
           NEXT_PUBLIC_STELLAR_NETWORK: testnet
           NEXT_PUBLIC_HORIZON_URL: https://horizon-testnet.stellar.org
@@ -39,8 +52,5 @@ jobs:
             http://localhost:3000/
             http://localhost:3000/dashboard
             http://localhost:3000/pay
-          startServerCommand: npm run start --prefix frontend
-          startServerReadyPattern: "Accepting connections"
-          startServerReadyTimeout: 60000
           uploadArtifacts: true
           temporaryPublicStorage: false

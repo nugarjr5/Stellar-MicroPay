@@ -71,7 +71,7 @@ jobs:
         with:
           targets: wasm32v1-none
       - uses: Swatinem/rust-cache@v2
-      - uses: stellar/stellar-cli@v23.0.1 
+      - uses: stellar/stellar-cli@v25.2.0
       - run: stellar contract build
       - run: cargo test
       - run: cargo build --target wasm32v1-none --release

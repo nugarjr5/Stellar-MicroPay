@@ -668,6 +668,37 @@ export default function Dashboard({ stellarURI }: DashboardProps) {
       }
     }
   };
+  // Real-time Soroban contract events via Server-Sent Events (SSE).
+  useEffect(() => {
+    if (!publicKey || typeof window === "undefined") return;
+
+    const apiBase =
+      process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "";
+
+    const eventSource = new EventSource(
+      `${apiBase}/api/events/stream`
+    );
+
+    eventSource.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+
+        if (payload.type !== "soroban_event") return;
+
+        setRefreshKey((current) => current + 1);
+      } catch (error) {
+        console.error("Failed to process Soroban SSE event:", error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error("Soroban SSE connection error:", error);
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [publicKey]);
 
   // Real-time payment streaming for the connected wallet.
   // On incoming payment: show OS notification when page is hidden,
@@ -678,33 +709,32 @@ export default function Dashboard({ stellarURI }: DashboardProps) {
     const unsubscribe = streamPayments(
       publicKey,
       async (payment) => {
-        if (payment.type === 'received') {
+        if (payment.type === "received") {
           const formattedAmount = formatAsset(payment.amount, payment.asset);
           showToast(`Received ${formattedAmount}`);
 
-          if (notificationEnabled && Notification.permission === 'granted') {
-            if (document.visibilityState === 'hidden') {
-              // Page is not visible — use the service worker showNotification()
-              // so the OS notification tray receives it.
+          if (notificationEnabled && Notification.permission === "granted") {
+            if (document.visibilityState === "hidden") {
               try {
                 const registration = await navigator.serviceWorker.ready;
-                await registration.showNotification('Stellar Pay — Payment received', {
-                  body: `You received ${formattedAmount}`,
-                  icon: '/favicon.svg',
-                  badge: '/favicon.svg',
-                });
+                await registration.showNotification(
+                  "Stellar Pay — Payment received",
+                  {
+                    body: `You received ${formattedAmount}`,
+                    icon: "/favicon.svg",
+                    badge: "/favicon.svg",
+                  }
+                );
               } catch (err) {
-                console.error('showNotification failed:', err);
+                console.error("showNotification failed:", err);
               }
             } else {
-              // Page is visible — in-app bubble is less intrusive.
               setBubbleMessage(`You received ${formattedAmount}`);
               setShowBubble(true);
               setTimeout(() => setShowBubble(false), 3000);
             }
           }
 
-          // Refresh XLM balance after an incoming payment
           try {
             const bal = await getXLMBalance(publicKey);
             setXlmBalance(bal);
@@ -716,7 +746,7 @@ export default function Dashboard({ stellarURI }: DashboardProps) {
         setIncomingPayment(payment);
       },
       (error) => {
-        console.error('Dashboard payment stream error:', error);
+        console.error("Dashboard payment stream error:", error);
       }
     );
 

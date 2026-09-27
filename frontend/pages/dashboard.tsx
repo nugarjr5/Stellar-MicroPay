@@ -1136,7 +1136,7 @@ export default function Dashboard({ stellarURI }: DashboardProps) {
                 View all →
               </Link>
             </div>
-            <TransactionList key={refreshKey} publicKey={publicKey} limit={5} compact 
+            <TransactionList key={refreshKey} publicKey={publicKey} limit={5} />
               <div className="card mt-6">
   <div className="flex items-center justify-between mb-6">
     <h2 className="font-display text-lg font-semibold text-white">

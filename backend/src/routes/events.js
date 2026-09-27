@@ -55,7 +55,9 @@ router.get("/stream", async (req, res) => {
                 },
               ]
             : [],
-          limit: 100,
+          pagination: {
+  limit: 100,
+},
         };
 
         const result = await sorobanServer.getEvents(request);
